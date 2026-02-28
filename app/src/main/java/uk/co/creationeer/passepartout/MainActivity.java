@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
         // Always reset credentials to ensure correct values
         prefs.edit()
             .putString(KEY_USER, "shaun")
-            .putString(KEY_PASS, "1234")
+            .putString(KEY_PASS, "Flash_Robertson")
             .apply();
         scheduleAlarm(this);
         statusText.setText("✓ Ready. Alarm set for 06:00 daily.");

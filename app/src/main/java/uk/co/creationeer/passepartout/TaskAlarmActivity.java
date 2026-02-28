@@ -83,7 +83,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private void login() {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
         String username = prefs.getString(MainActivity.KEY_USER, "shaun");
-        String password = prefs.getString(MainActivity.KEY_PASS, "1234");
+        String password = prefs.getString(MainActivity.KEY_PASS, "Flash_Robertson");
 
         RequestBody body = new FormBody.Builder()
             .add("username", username)
@@ -158,7 +158,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         boolean onRadar = json.optBoolean("on_radar", false);
                         radarBtn.setText(onRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
 
-                        statusText.setText("What are you doing about this?");
+                        statusText.setText("Be bothered - take time to think");
                         setButtonsEnabled(true);
                     } catch (Exception e) {
                         statusText.setText("Parse error: " + body.substring(0, Math.min(body.length(), 80)));
@@ -192,7 +192,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         Toast.makeText(TaskAlarmActivity.this, "Failed to save. Try again.", Toast.LENGTH_SHORT).show();
                         setButtonsEnabled(true);
-                        statusText.setText("What are you doing about this?");
+                        statusText.setText("Be bothered - take time to think");
                     });
                 }
 
