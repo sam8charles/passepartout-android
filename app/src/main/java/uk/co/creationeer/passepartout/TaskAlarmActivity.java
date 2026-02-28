@@ -82,7 +82,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
     private void login() {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
-        String username = prefs.getString(MainActivity.KEY_USER, "shaun");
+        String username = prefs.getString(MainActivity.KEY_USER, "Shaun");
         String password = prefs.getString(MainActivity.KEY_PASS, "1234");
 
         RequestBody body = new FormBody.Builder()

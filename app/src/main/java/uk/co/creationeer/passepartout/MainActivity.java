@@ -28,20 +28,13 @@ public class MainActivity extends AppCompatActivity {
         TextView statusText = findViewById(R.id.status_text);
         Button testBtn      = findViewById(R.id.test_btn);
 
-        // Check if already configured
-        String savedUser = prefs.getString(KEY_USER, "");
-        if (!savedUser.isEmpty()) {
-            statusText.setText("✓ Configured as: " + savedUser + "\nAlarm set for 06:00 daily.");
-            scheduleAlarm(this);
-        } else {
-            // Auto-save default credentials and schedule
-            prefs.edit()
-                .putString(KEY_USER, "shaun")
-                .putString(KEY_PASS, "1234")
-                .apply();
-            scheduleAlarm(this);
-            statusText.setText("✓ Ready. Alarm set for 06:00 daily.");
-        }
+        // Always reset credentials to ensure correct values
+        prefs.edit()
+            .putString(KEY_USER, "Shaun")
+            .putString(KEY_PASS, "1234")
+            .apply();
+        scheduleAlarm(this);
+        statusText.setText("✓ Ready. Alarm set for 06:00 daily.");
 
         testBtn.setOnClickListener(v -> {
             Intent intent = new Intent(this, TaskAlarmActivity.class);
