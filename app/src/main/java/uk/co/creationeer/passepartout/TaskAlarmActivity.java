@@ -202,13 +202,10 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         try {
                             JSONObject json = new JSONObject(body);
                             if (action.equals("radar")) {
-                                // Update button label only - do NOT reload task
+                                // Update button label then close
                                 boolean nowOnRadar = json.optBoolean("on_radar", false);
                                 radarBtn.setText(nowOnRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
-                                // Update currentTask so button stays in sync
-                                try { currentTask.put("on_radar", nowOnRadar); } catch (Exception ignored) {}
-                                setButtonsEnabled(true);
-                                statusText.setText("What are you doing about this?");
+                                finish();
                             } else {
                                 finish();
                             }
