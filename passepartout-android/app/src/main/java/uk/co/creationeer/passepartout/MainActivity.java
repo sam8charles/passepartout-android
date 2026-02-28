@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,10 +15,9 @@ import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
-    static final String PREFS       = "passepartout";
-    static final String KEY_USER    = "username";
-    static final String KEY_PASS    = "password";
-    static final String BASE_URL    = "https://creationeer.co.uk/goforit/";
+    static final String PREFS = "passepartout";
+    static final String KEY_SESSION = "session_cookie";
+    static final String BASE_URL = "https://creationeer.co.uk/goforit/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,25 +25,39 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        EditText sessionInput = findViewById(R.id.session_input);
         TextView statusText = findViewById(R.id.status_text);
-        Button testBtn      = findViewById(R.id.test_btn);
+        Button saveBtn = findViewById(R.id.save_btn);
+        Button testBtn = findViewById(R.id.test_btn);
 
-        // Check if already configured
-        String savedUser = prefs.getString(KEY_USER, "");
-        if (!savedUser.isEmpty()) {
-            statusText.setText("✓ Configured as: " + savedUser + "\nAlarm set for 06:00 daily.");
-            scheduleAlarm(this);
+        // Show current session if saved
+        String savedSession = prefs.getString(KEY_SESSION, "");
+        if (!savedSession.isEmpty()) {
+            sessionInput.setText(savedSession);
+            statusText.setText("✓ Session saved. Alarm set for 06:00 daily.");
         } else {
-            // Auto-save default credentials and schedule
-            prefs.edit()
-                .putString(KEY_USER, "shaun")
-                .putString(KEY_PASS, "1234")
-                .apply();
-            scheduleAlarm(this);
-            statusText.setText("✓ Ready. Alarm set for 06:00 daily.");
+            statusText.setText("Enter your PHPSESSID to connect to Passepartout.");
         }
 
+        saveBtn.setOnClickListener(v -> {
+            String session = sessionInput.getText().toString().trim();
+            if (session.isEmpty()) {
+                Toast.makeText(this, "Please enter your session ID", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            prefs.edit().putString(KEY_SESSION, session).apply();
+            scheduleAlarm(this);
+            statusText.setText("✓ Saved! Alarm set for 06:00 daily.");
+            Toast.makeText(this, "Saved and alarm scheduled", Toast.LENGTH_SHORT).show();
+        });
+
         testBtn.setOnClickListener(v -> {
+            // Fire the alarm screen immediately for testing
+            String session = prefs.getString(KEY_SESSION, "");
+            if (session.isEmpty()) {
+                Toast.makeText(this, "Save your session ID first", Toast.LENGTH_SHORT).show();
+                return;
+            }
             Intent intent = new Intent(this, TaskAlarmActivity.class);
             startActivity(intent);
         });
@@ -57,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
             context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // Set for 06:00 today, or tomorrow if already past
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, 6);
         calendar.set(Calendar.MINUTE, 0);
@@ -73,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
                 pendingIntent
             );
         } catch (SecurityException e) {
+            // Fallback for devices that restrict exact alarms
             alarmManager.setAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 calendar.getTimeInMillis(),
