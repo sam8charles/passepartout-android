@@ -18,6 +18,7 @@
 
     <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
 
+    <!-- Project name -->
     <TextView
         android:id="@+id/project_text"
         android:layout_width="match_parent"
@@ -28,8 +29,9 @@
         android:gravity="center"
         android:paddingLeft="32dp"
         android:paddingRight="32dp"
-        android:paddingBottom="12dp"/>
+        android:paddingBottom="8dp"/>
 
+    <!-- Main task description -->
     <TextView
         android:id="@+id/task_text"
         android:layout_width="match_parent"
@@ -43,6 +45,23 @@
         android:paddingRight="32dp"
         android:lineSpacingExtra="6dp"/>
 
+    <!-- "towards" subtitle - only shown for child tasks -->
+    <TextView
+        android:id="@+id/towards_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#888888"
+        android:textSize="13sp"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:paddingLeft="40dp"
+        android:paddingRight="40dp"
+        android:paddingTop="10dp"
+        android:lineSpacingExtra="3dp"
+        android:visibility="gone"/>
+
+    <!-- Status / loading text -->
     <TextView
         android:id="@+id/loading_text"
         android:layout_width="match_parent"
@@ -51,33 +70,76 @@
         android:textColor="#aaaaaa"
         android:textSize="15sp"
         android:gravity="center"
-        android:paddingTop="24dp"
+        android:paddingTop="20dp"
         android:paddingLeft="32dp"
         android:paddingRight="32dp"/>
 
+    <!-- Next step input - hidden until "Very Next Step" tapped -->
+    <LinearLayout
+        android:id="@+id/nextstep_input_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="24dp"
+        android:paddingRight="24dp"
+        android:paddingTop="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="What is the very next physical step?"
+            android:textColor="#FFB400"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/nextstep_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="e.g. Call Dave to get the access code"
+            android:textColor="#ffffff"
+            android:textColorHint="#555555"
+            android:background="#16213e"
+            android:padding="12dp"
+            android:inputType="textCapSentences"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/nextstep_save_btn"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Save as next step"
+            android:backgroundTint="#FFB400"
+            android:textColor="#000000"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
+
     <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
 
+    <!-- Action buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp">
 
-        <!-- Row 1: Done + Radar -->
+        <!-- Row 1: Mark as Done + Radar -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="12dp">
 
             <Button
                 android:id="@+id/btn_done"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="60dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="8dp"
                 android:text="✓ Mark as Done"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:backgroundTint="#4ade80"
                 android:textColor="#000000"/>
@@ -85,45 +147,56 @@
             <Button
                 android:id="@+id/btn_radar"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="60dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:text="📡 Add to Radar"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:backgroundTint="#3b82f6"
                 android:textColor="#ffffff"/>
 
         </LinearLayout>
 
-        <!-- Row 2: Edit + Delete -->
+        <!-- Row 2: Very Next Step + Edit -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/btn_nextstep"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="⚡ Very Next Step"
+                android:textSize="13sp"
+                android:backgroundTint="#f59e0b"
+                android:textColor="#000000"/>
 
             <Button
                 android:id="@+id/btn_edit"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="60dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp"
                 android:text="✏ Edit Task"
-                android:textSize="16sp"
+                android:textSize="13sp"
                 android:backgroundTint="#374151"
                 android:textColor="#ffffff"/>
 
-            <Button
-                android:id="@+id/btn_delete"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="🗑 Delete Task"
-                android:textSize="14sp"
-                android:backgroundTint="#ef4444"
-                android:textColor="#ffffff"/>
-
         </LinearLayout>
+
+        <!-- Row 3: Delete full width -->
+        <Button
+            android:id="@+id/btn_delete"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="🗑 Delete Task"
+            android:textSize="13sp"
+            android:backgroundTint="#ef4444"
+            android:textColor="#ffffff"/>
 
     </LinearLayout>
 

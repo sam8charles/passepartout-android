@@ -6,10 +6,15 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONObject;
 import java.io.IOException;
@@ -26,19 +31,25 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private OkHttpClient client = new OkHttpClient();
     private JSONObject currentTask;
     private String sessionCookie;
+    private boolean decisionMade = false;
+
     private TextView projectText;
     private TextView taskText;
+    private TextView towardsText;
     private TextView statusText;
     private Button doneBtn;
     private Button radarBtn;
-    private Button deleteBtn;
+    private Button nextStepBtn;
     private Button editBtn;
+    private Button deleteBtn;
+    private LinearLayout nextStepInputLayout;
+    private EditText nextStepInput;
+    private Button nextStepSaveBtn;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Wake screen and show over lock screen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
@@ -55,29 +66,57 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_task_alarm);
 
-        projectText = findViewById(R.id.project_text);
-        taskText    = findViewById(R.id.task_text);
-        statusText  = findViewById(R.id.loading_text);
-        doneBtn     = findViewById(R.id.btn_done);
-        radarBtn    = findViewById(R.id.btn_radar);
-        deleteBtn   = findViewById(R.id.btn_delete);
-        editBtn     = findViewById(R.id.btn_edit);
+        projectText       = findViewById(R.id.project_text);
+        taskText          = findViewById(R.id.task_text);
+        towardsText       = findViewById(R.id.towards_text);
+        statusText        = findViewById(R.id.loading_text);
+        doneBtn           = findViewById(R.id.btn_done);
+        radarBtn          = findViewById(R.id.btn_radar);
+        nextStepBtn       = findViewById(R.id.btn_nextstep);
+        editBtn           = findViewById(R.id.btn_edit);
+        deleteBtn         = findViewById(R.id.btn_delete);
+        nextStepInputLayout = findViewById(R.id.nextstep_input_layout);
+        nextStepInput     = findViewById(R.id.nextstep_input);
+        nextStepSaveBtn   = findViewById(R.id.nextstep_save_btn);
 
         setButtonsEnabled(false);
         statusText.setText("Connecting...");
 
-        // Login first, then load task
         login();
 
         doneBtn.setOnClickListener(v -> performAction("done"));
         radarBtn.setOnClickListener(v -> performAction("radar"));
-        deleteBtn.setOnClickListener(v -> confirmAndDelete());
         editBtn.setOnClickListener(v -> openEdit());
+        deleteBtn.setOnClickListener(v -> confirmAndDelete());
+
+        nextStepBtn.setOnClickListener(v -> {
+            // Toggle input panel visibility
+            if (nextStepInputLayout.getVisibility() == View.GONE) {
+                nextStepInputLayout.setVisibility(View.VISIBLE);
+                nextStepInput.requestFocus();
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                imm.showSoftInput(nextStepInput, InputMethodManager.SHOW_IMPLICIT);
+            } else {
+                nextStepInputLayout.setVisibility(View.GONE);
+            }
+        });
+
+        nextStepSaveBtn.setOnClickListener(v -> saveNextStep());
     }
 
     @Override
     public void onBackPressed() {
-        // Cannot back out — must make a decision
+        // Cannot back out
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (!decisionMade && currentTask != null) {
+            Intent intent = new Intent(this, TaskAlarmActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            getApplicationContext().startActivity(intent);
+        }
     }
 
     private void login() {
@@ -97,19 +136,17 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
         client.newCall(request).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> statusText.setText("No internet connection.\nCannot load task."));
+                runOnUiThread(() -> statusText.setText("No internet connection."));
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
                 String respBody = response.body().string();
-                // Extract session cookie
                 String cookie = response.header("Set-Cookie");
                 if (cookie != null && cookie.contains("PHPSESSID=")) {
                     int start = cookie.indexOf("PHPSESSID=");
                     int end   = cookie.indexOf(";", start);
                     sessionCookie = end > 0 ? cookie.substring(start, end) : cookie.substring(start);
                 } else {
-                    // Try from JSON session field
                     try {
                         JSONObject json = new JSONObject(respBody);
                         if (json.has("session")) {
@@ -119,10 +156,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
                 }
 
                 if (sessionCookie == null) {
-                    runOnUiThread(() -> statusText.setText("Login failed.\nCheck credentials."));
+                    runOnUiThread(() -> statusText.setText("Login failed."));
                     return;
                 }
-
                 loadTask();
             }
         });
@@ -138,7 +174,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
         client.newCall(request).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> statusText.setText("Could not load task.\nCheck internet."));
+                runOnUiThread(() -> statusText.setText("Could not load task."));
             }
 
             @Override public void onResponse(Call call, Response response) throws IOException {
@@ -154,14 +190,22 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         projectText.setText(json.getString("project_name"));
                         taskText.setText(json.getString("description"));
 
-                        // Set radar button label based on current state
+                        // Show "towards" subtitle if this is a child task
+                        String parentDesc = json.optString("parent_description", "");
+                        if (!parentDesc.isEmpty()) {
+                            towardsText.setText("towards: " + parentDesc);
+                            towardsText.setVisibility(View.VISIBLE);
+                        } else {
+                            towardsText.setVisibility(View.GONE);
+                        }
+
                         boolean onRadar = json.optBoolean("on_radar", false);
                         radarBtn.setText(onRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
 
                         statusText.setText("Be bothered - take time to think");
                         setButtonsEnabled(true);
                     } catch (Exception e) {
-                        statusText.setText("Parse error: " + body.substring(0, Math.min(body.length(), 80)));
+                        statusText.setText("Error: " + body.substring(0, Math.min(body.length(), 80)));
                     }
                 });
             }
@@ -171,8 +215,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private void setButtonsEnabled(boolean enabled) {
         doneBtn.setEnabled(enabled);
         radarBtn.setEnabled(enabled);
-        deleteBtn.setEnabled(enabled);
+        nextStepBtn.setEnabled(enabled);
         editBtn.setEnabled(enabled);
+        deleteBtn.setEnabled(enabled);
     }
 
     private void performAction(String action) {
@@ -190,7 +235,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
             client.newCall(request).enqueue(new Callback() {
                 @Override public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
-                        Toast.makeText(TaskAlarmActivity.this, "Failed to save. Try again.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(TaskAlarmActivity.this, "Failed. Try again.", Toast.LENGTH_SHORT).show();
                         setButtonsEnabled(true);
                         statusText.setText("Be bothered - take time to think");
                     });
@@ -202,14 +247,16 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         try {
                             JSONObject json = new JSONObject(body);
                             if (action.equals("radar")) {
-                                // Update button label then close
                                 boolean nowOnRadar = json.optBoolean("on_radar", false);
                                 radarBtn.setText(nowOnRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
+                                decisionMade = true;
                                 finish();
                             } else {
+                                decisionMade = true;
                                 finish();
                             }
                         } catch (Exception e) {
+                            decisionMade = true;
                             finish();
                         }
                     });
@@ -220,9 +267,48 @@ public class TaskAlarmActivity extends AppCompatActivity {
         }
     }
 
+    private void saveNextStep() {
+        String description = nextStepInput.getText().toString().trim();
+        if (description.isEmpty()) {
+            Toast.makeText(this, "Please describe the next step", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (currentTask == null) return;
+
+        nextStepSaveBtn.setEnabled(false);
+
+        try {
+            int taskId = currentTask.getInt("task_id");
+            String url = MainActivity.BASE_URL + "app_api.php?action=nextstep&task_id=" + taskId
+                + "&description=" + Uri.encode(description);
+
+            Request request = new Request.Builder()
+                .url(url)
+                .addHeader("Cookie", sessionCookie)
+                .build();
+
+            client.newCall(request).enqueue(new Callback() {
+                @Override public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(TaskAlarmActivity.this, "Failed. Try again.", Toast.LENGTH_SHORT).show();
+                        nextStepSaveBtn.setEnabled(true);
+                    });
+                }
+
+                @Override public void onResponse(Call call, Response response) throws IOException {
+                    runOnUiThread(() -> {
+                        decisionMade = true;
+                        finish();
+                    });
+                }
+            });
+        } catch (Exception e) {
+            nextStepSaveBtn.setEnabled(true);
+        }
+    }
+
     private void confirmAndDelete() {
-        // Show confirmation before deleting
-        new androidx.appcompat.app.AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
             .setTitle("Delete task?")
             .setMessage("This will permanently remove the task.")
             .setPositiveButton("Delete", (d, w) -> performAction("drop"))
@@ -237,7 +323,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
             int projectId = currentTask.getInt("project_id");
             String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "#task" + taskId;
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            decisionMade = true;
             startActivity(intent);
+            decisionMade = true;
             finish();
         } catch (Exception e) {
             Toast.makeText(this, "Could not open task", Toast.LENGTH_SHORT).show();
