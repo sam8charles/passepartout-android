@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1a1a2e"
+    android:gravity="center">
+
+    <!-- Top bar -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="PASSEPARTOUT"
+        android:textColor="#FFB400"
+        android:textSize="12sp"
+        android:letterSpacing="0.2"
+        android:gravity="center"
+        android:padding="24dp"/>
+
+    <!-- Spacer -->
+    <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+
+    <!-- Project name -->
+    <TextView
+        android:id="@+id/project_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#FFB400"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:paddingLeft="32dp"
+        android:paddingRight="32dp"
+        android:paddingBottom="12dp"/>
+
+    <!-- Task description - the big centrepiece -->
+    <TextView
+        android:id="@+id/task_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#ffffff"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:paddingLeft="32dp"
+        android:paddingRight="32dp"
+        android:lineSpacingExtra="6dp"/>
+
+    <!-- Status / loading text -->
+    <TextView
+        android:id="@+id/loading_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Loading..."
+        android:textColor="#aaaaaa"
+        android:textSize="15sp"
+        android:gravity="center"
+        android:paddingTop="24dp"
+        android:paddingLeft="32dp"
+        android:paddingRight="32dp"/>
+
+    <!-- Spacer -->
+    <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1"/>
+
+    <!-- Action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btn_done"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="✓ Done"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:backgroundTint="#4ade80"
+                android:textColor="#000000"/>
+
+            <Button
+                android:id="@+id/btn_radar"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="👁 Radar"
+                android:textSize="16sp"
+                android:backgroundTint="#3b82f6"
+                android:textColor="#ffffff"/>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_snooze"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="⏭ Skip"
+                android:textSize="16sp"
+                android:backgroundTint="#374151"
+                android:textColor="#ffffff"/>
+
+            <Button
+                android:id="@+id/btn_drop"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="🗑 Drop"
+                android:textSize="16sp"
+                android:backgroundTint="#ef4444"
+                android:textColor="#ffffff"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
