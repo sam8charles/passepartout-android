@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Always reset credentials to ensure correct values
         prefs.edit()
-            .putString(KEY_USER, "Shaun")
+            .putString(KEY_USER, "shaun")
             .putString(KEY_PASS, "1234")
             .apply();
         scheduleAlarm(this);
