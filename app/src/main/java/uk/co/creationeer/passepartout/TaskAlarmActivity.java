@@ -1,5 +1,6 @@
 package uk.co.creationeer.passepartout;
 
+import android.app.DatePickerDialog;
 import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -18,6 +19,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONObject;
 import java.io.IOException;
+import java.util.Calendar;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.FormBody;
@@ -38,7 +40,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private TextView towardsText;
     private TextView statusText;
     private Button doneBtn;
-    private Button radarBtn;
+    private Button todoSoonBtn;
+    private Button todoLaterBtn;
     private Button nextStepBtn;
     private Button editBtn;
     private Button deleteBtn;
@@ -66,31 +69,34 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_task_alarm);
 
-        projectText       = findViewById(R.id.project_text);
-        taskText          = findViewById(R.id.task_text);
-        towardsText       = findViewById(R.id.towards_text);
-        statusText        = findViewById(R.id.loading_text);
-        doneBtn           = findViewById(R.id.btn_done);
-        radarBtn          = findViewById(R.id.btn_radar);
-        nextStepBtn       = findViewById(R.id.btn_nextstep);
-        editBtn           = findViewById(R.id.btn_edit);
-        deleteBtn         = findViewById(R.id.btn_delete);
+        projectText        = findViewById(R.id.project_text);
+        taskText           = findViewById(R.id.task_text);
+        towardsText        = findViewById(R.id.towards_text);
+        statusText         = findViewById(R.id.loading_text);
+        doneBtn            = findViewById(R.id.btn_done);
+        todoSoonBtn        = findViewById(R.id.btn_todosoon);
+        todoLaterBtn       = findViewById(R.id.btn_todolater);
+        nextStepBtn        = findViewById(R.id.btn_nextstep);
+        editBtn            = findViewById(R.id.btn_edit);
+        deleteBtn          = findViewById(R.id.btn_delete);
         nextStepInputLayout = findViewById(R.id.nextstep_input_layout);
-        nextStepInput     = findViewById(R.id.nextstep_input);
-        nextStepSaveBtn   = findViewById(R.id.nextstep_save_btn);
+        nextStepInput      = findViewById(R.id.nextstep_input);
+        nextStepSaveBtn    = findViewById(R.id.nextstep_save_btn);
 
         setButtonsEnabled(false);
         statusText.setText("Connecting...");
 
         login();
 
-        doneBtn.setOnClickListener(v -> performAction("done"));
-        radarBtn.setOnClickListener(v -> performAction("radar"));
+        doneBtn.setOnClickListener(v -> performAction("done", null));
         editBtn.setOnClickListener(v -> openEdit());
         deleteBtn.setOnClickListener(v -> confirmAndDelete());
 
+        todoSoonBtn.setOnClickListener(v -> performAction("todosoon", null));
+
+        todoLaterBtn.setOnClickListener(v -> showDatePicker());
+
         nextStepBtn.setOnClickListener(v -> {
-            // Toggle input panel visibility
             if (nextStepInputLayout.getVisibility() == View.GONE) {
                 nextStepInputLayout.setVisibility(View.VISIBLE);
                 nextStepInput.requestFocus();
@@ -105,9 +111,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onBackPressed() {
-        // Cannot back out
-    }
+    public void onBackPressed() { /* Cannot back out */ }
 
     @Override
     protected void onStop() {
@@ -117,6 +121,25 @@ public class TaskAlarmActivity extends AppCompatActivity {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             getApplicationContext().startActivity(intent);
         }
+    }
+
+    private void showDatePicker() {
+        Calendar cal = Calendar.getInstance();
+        // Default to 1 week from now
+        cal.add(Calendar.DAY_OF_MONTH, 7);
+        DatePickerDialog picker = new DatePickerDialog(
+            this,
+            (view, year, month, day) -> {
+                String date = String.format("%02d-%02d-%04d", day, month + 1, year);
+                performAction("todolater", date);
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        );
+        picker.setTitle("Revisit this task from...");
+        picker.getDatePicker().setMinDate(System.currentTimeMillis() + 86400000L); // min tomorrow
+        picker.show();
     }
 
     private void login() {
@@ -154,7 +177,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         }
                     } catch (Exception ignored) {}
                 }
-
                 if (sessionCookie == null) {
                     runOnUiThread(() -> statusText.setText("Login failed."));
                     return;
@@ -190,7 +212,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         projectText.setText(json.getString("project_name"));
                         taskText.setText(json.getString("description"));
 
-                        // Show "towards" subtitle if this is a child task
                         String parentDesc = json.optString("parent_description", "");
                         if (!parentDesc.isEmpty()) {
                             towardsText.setText("towards: " + parentDesc);
@@ -199,8 +220,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
                             towardsText.setVisibility(View.GONE);
                         }
 
-                        boolean onRadar = json.optBoolean("on_radar", false);
-                        radarBtn.setText(onRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
+                        // Set Todo Soon / Todo Later button states
+                        boolean onTodoSoon = json.optBoolean("on_radar", false);
+                        updateTodoButtons(onTodoSoon);
 
                         statusText.setText("Be bothered - take time to think");
                         setButtonsEnabled(true);
@@ -212,23 +234,41 @@ public class TaskAlarmActivity extends AppCompatActivity {
         });
     }
 
+    private void updateTodoButtons(boolean onTodoSoon) {
+        if (onTodoSoon) {
+            todoSoonBtn.setAlpha(0.4f);
+            todoSoonBtn.setEnabled(false);
+            todoLaterBtn.setAlpha(1.0f);
+            todoLaterBtn.setEnabled(true);
+        } else {
+            todoSoonBtn.setAlpha(1.0f);
+            todoSoonBtn.setEnabled(true);
+            todoLaterBtn.setAlpha(0.4f);
+            todoLaterBtn.setEnabled(true); // always allow Todo Later
+        }
+    }
+
     private void setButtonsEnabled(boolean enabled) {
         doneBtn.setEnabled(enabled);
-        radarBtn.setEnabled(enabled);
+        todoSoonBtn.setEnabled(enabled);
+        todoLaterBtn.setEnabled(enabled);
         nextStepBtn.setEnabled(enabled);
         editBtn.setEnabled(enabled);
         deleteBtn.setEnabled(enabled);
     }
 
-    private void performAction(String action) {
+    private void performAction(String action, String date) {
         if (currentTask == null) return;
         setButtonsEnabled(false);
         statusText.setText("Saving...");
 
         try {
             int taskId = currentTask.getInt("task_id");
+            String url = MainActivity.BASE_URL + "app_api.php?action=" + action + "&task_id=" + taskId;
+            if (date != null) url += "&date=" + Uri.encode(date);
+
             Request request = new Request.Builder()
-                .url(MainActivity.BASE_URL + "app_api.php?action=" + action + "&task_id=" + taskId)
+                .url(url)
                 .addHeader("Cookie", sessionCookie)
                 .build();
 
@@ -242,23 +282,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
                 }
 
                 @Override public void onResponse(Call call, Response response) throws IOException {
-                    String body = response.body().string();
                     runOnUiThread(() -> {
-                        try {
-                            JSONObject json = new JSONObject(body);
-                            if (action.equals("radar")) {
-                                boolean nowOnRadar = json.optBoolean("on_radar", false);
-                                radarBtn.setText(nowOnRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
-                                decisionMade = true;
-                                finish();
-                            } else {
-                                decisionMade = true;
-                                finish();
-                            }
-                        } catch (Exception e) {
-                            decisionMade = true;
-                            finish();
-                        }
+                        decisionMade = true;
+                        finish();
                     });
                 }
             });
@@ -274,7 +300,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
             return;
         }
         if (currentTask == null) return;
-
         nextStepSaveBtn.setEnabled(false);
 
         try {
@@ -294,12 +319,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         nextStepSaveBtn.setEnabled(true);
                     });
                 }
-
                 @Override public void onResponse(Call call, Response response) throws IOException {
-                    runOnUiThread(() -> {
-                        decisionMade = true;
-                        finish();
-                    });
+                    runOnUiThread(() -> { decisionMade = true; finish(); });
                 }
             });
         } catch (Exception e) {
@@ -311,7 +332,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
             .setTitle("Delete task?")
             .setMessage("This will permanently remove the task.")
-            .setPositiveButton("Delete", (d, w) -> performAction("drop"))
+            .setPositiveButton("Delete", (d, w) -> performAction("drop", null))
             .setNegativeButton("Cancel", null)
             .show();
     }
@@ -325,7 +346,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             decisionMade = true;
             startActivity(intent);
-            decisionMade = true;
             finish();
         } catch (Exception e) {
             Toast.makeText(this, "Could not open task", Toast.LENGTH_SHORT).show();
