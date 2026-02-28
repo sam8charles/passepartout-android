@@ -202,9 +202,11 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         try {
                             JSONObject json = new JSONObject(body);
                             if (action.equals("radar")) {
-                                // Update button label and reload
+                                // Update button label only - do NOT reload task
                                 boolean nowOnRadar = json.optBoolean("on_radar", false);
                                 radarBtn.setText(nowOnRadar ? "📡 Remove from Radar" : "📡 Add to Radar");
+                                // Update currentTask so button stays in sync
+                                try { currentTask.put("on_radar", nowOnRadar); } catch (Exception ignored) {}
                                 setButtonsEnabled(true);
                                 statusText.setText("What are you doing about this?");
                             } else {
@@ -234,9 +236,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private void openEdit() {
         if (currentTask == null) return;
         try {
-            int taskId = currentTask.getInt("task_id");
-            // Open the task in the browser for editing
-            String url = MainActivity.BASE_URL + "showproject.php?taskid=" + taskId;
+            int taskId    = currentTask.getInt("task_id");
+            int projectId = currentTask.getInt("project_id");
+            String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "#task" + taskId;
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             startActivity(intent);
             finish();
