@@ -20,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONObject;
 import java.io.IOException;
 import java.util.Calendar;
+import java.util.Random;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.FormBody;
@@ -83,6 +84,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
         nextStepInput      = findViewById(R.id.nextstep_input);
         nextStepSaveBtn    = findViewById(R.id.nextstep_save_btn);
 
+        randomiseButtonPosition();
+
         setButtonsEnabled(false);
         statusText.setText("Connecting...");
 
@@ -140,6 +143,47 @@ public class TaskAlarmActivity extends AppCompatActivity {
         picker.setTitle("Revisit this task from...");
         picker.getDatePicker().setMinDate(System.currentTimeMillis() + 86400000L); // min tomorrow
         picker.show();
+    }
+
+    private void randomiseButtonPosition() {
+        LinearLayout root = findViewById(R.id.root_layout);
+        LinearLayout buttonBlock = findViewById(R.id.button_block);
+        if (root == null || buttonBlock == null) return;
+
+        // 0 = all below (default), 1 = all above, 2 = split
+        int choice = new Random().nextInt(3);
+
+        if (choice == 0) {
+            // Default: buttons already at bottom, nothing to do
+            return;
+        }
+
+        if (choice == 1) {
+            // Move entire button block to just after the PASSEPARTOUT title
+            root.removeView(buttonBlock);
+            root.addView(buttonBlock, 1);
+            return;
+        }
+
+        // choice == 2: split - rows 1 and 2 above, row 3 below
+        if (buttonBlock.getChildCount() < 3) return;
+
+        LinearLayout topBlock = new LinearLayout(this);
+        topBlock.setOrientation(LinearLayout.VERTICAL);
+        android.view.ViewGroup.LayoutParams lp = new android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        topBlock.setLayoutParams(lp);
+        topBlock.setPadding(40, 16, 40, 0);
+
+        android.view.View row0 = buttonBlock.getChildAt(0);
+        android.view.View row1 = buttonBlock.getChildAt(1);
+        buttonBlock.removeView(row0);
+        buttonBlock.removeView(row1);
+        topBlock.addView(row0);
+        topBlock.addView(row1);
+
+        root.addView(topBlock, 1);
     }
 
     private void login() {
