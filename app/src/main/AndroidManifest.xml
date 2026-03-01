@@ -48,6 +48,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="uk.co.creationeer.passepartout.ALARM" />
+                <action android:name="uk.co.creationeer.passepartout.BACKBURNER_ALARM" />
             </intent-filter>
         </receiver>
 
