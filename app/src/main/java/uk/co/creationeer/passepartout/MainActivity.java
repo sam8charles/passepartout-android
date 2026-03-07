@@ -40,6 +40,15 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = new Intent(this, TaskAlarmActivity.class);
             startActivity(intent);
         });
+
+        Button testNotifBtn = findViewById(R.id.test_notif_btn);
+        testNotifBtn.setOnClickListener(v -> {
+            // Simulate exactly what the real alarm does - send the broadcast
+            Intent alarmIntent = new Intent(this, AlarmReceiver.class);
+            alarmIntent.setAction(AlarmReceiver.ACTION_MORNING);
+            sendBroadcast(alarmIntent);
+            statusText.setText("Alarm broadcast sent - lock screen and check for notification");
+        });
     }
 
     public static void scheduleAlarm(Context context) {
