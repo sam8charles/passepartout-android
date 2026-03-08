@@ -67,8 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(log));
                 StringBuilder sb = new StringBuilder();
                 String line;
-                while ((line = br.readLine()) != null) sb.append(line).append("
-");
+                while ((line = br.readLine()) != null) sb.append(line).append("\n");
                 br.close();
                 statusText.setText(sb.length() > 0 ? sb.toString() : "Log is empty");
             } catch (Exception e) {
@@ -116,8 +115,7 @@ public class MainActivity extends AppCompatActivity {
             File log = new File(context.getExternalFilesDir(null), "alarm_log.txt");
             FileWriter fw = new FileWriter(log, true);
             String ts = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.UK).format(new Date());
-            fw.write(ts + " " + message + "
-");
+            fw.write(ts + " " + message + "\n");
             fw.close();
         } catch (Exception ignored) {}
     }
