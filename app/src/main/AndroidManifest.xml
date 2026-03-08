@@ -52,6 +52,15 @@
             </intent-filter>
         </receiver>
 
+        <!-- Unlock receiver — launches task screen when phone unlocked if alarm pending -->
+        <receiver
+            android:name=".UnlockReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.USER_PRESENT" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

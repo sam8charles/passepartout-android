@@ -47,11 +47,18 @@ public class AlarmReceiver extends BroadcastReceiver {
             return;
         }
 
-        // Morning alarm — reschedule for tomorrow then show notification
+        // Morning alarm — reschedule for tomorrow, set flag, launch when phone next unlocked
         MainActivity.writeLog(context, "onReceive fired. Action: " + action);
         MainActivity.scheduleAlarm(context);
-        showAlarmNotification(context, -1, NOTIF_ID_MORNING);
+        context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+               .edit().putBoolean("alarm_pending", true).apply();
         scheduleBackburnerAlarms(context);
+        // Also try direct launch in case phone is already awake/unlocked
+        try {
+            Intent launch = new Intent(context, TaskAlarmActivity.class);
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            context.startActivity(launch);
+        } catch (Exception ignored) {}
     }
 
     /**

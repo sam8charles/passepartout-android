@@ -339,6 +339,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
                 @Override public void onResponse(Call call, Response response) throws IOException {
                     runOnUiThread(() -> {
                         decisionMade = true;
+                        clearAlarmPending();
                         finish();
                     });
                 }
@@ -375,7 +376,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
                     });
                 }
                 @Override public void onResponse(Call call, Response response) throws IOException {
-                    runOnUiThread(() -> { decisionMade = true; finish(); });
+                    runOnUiThread(() -> { decisionMade = true; clearAlarmPending(); finish(); });
                 }
             });
         } catch (Exception e) {
@@ -392,6 +393,11 @@ public class TaskAlarmActivity extends AppCompatActivity {
             .show();
     }
 
+    private void clearAlarmPending() {
+        getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
+            .edit().putBoolean("alarm_pending", false).apply();
+    }
+
     private void openEdit() {
         if (currentTask == null) return;
         try {
@@ -400,6 +406,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
             String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "#task" + taskId;
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             decisionMade = true;
+            clearAlarmPending();
             startActivity(intent);
             finish();
         } catch (Exception e) {
