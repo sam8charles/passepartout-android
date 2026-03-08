@@ -35,6 +35,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private JSONObject currentTask;
     private String sessionCookie;
     private boolean decisionMade = false;
+    private int specificTaskId = -1; // set if launched from a backburner alarm
 
     private TextView projectText;
     private TextView taskText;
@@ -84,6 +85,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
         nextStepInput      = findViewById(R.id.nextstep_input);
         nextStepSaveBtn    = findViewById(R.id.nextstep_save_btn);
 
+        // Check if we were launched for a specific backburner task
+        specificTaskId = getIntent().getIntExtra(AlarmReceiver.EXTRA_TASK_ID, -1);
+
         randomiseButtonPosition();
 
         setButtonsEnabled(false);
@@ -122,6 +126,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
         if (!decisionMade && currentTask != null) {
             Intent intent = new Intent(this, TaskAlarmActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            if (specificTaskId > 0) {
+                intent.putExtra(AlarmReceiver.EXTRA_TASK_ID, specificTaskId);
+            }
             getApplicationContext().startActivity(intent);
         }
     }
@@ -233,8 +240,12 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private void loadTask() {
         runOnUiThread(() -> statusText.setText("Loading task..."));
 
+        String apiUrl = specificTaskId > 0
+            ? MainActivity.BASE_URL + "app_api.php?action=gettask&task_id=" + specificTaskId
+            : MainActivity.BASE_URL + "app_api.php?action=getrandomtask";
+
         Request request = new Request.Builder()
-            .url(MainActivity.BASE_URL + "app_api.php?action=getrandomtask")
+            .url(apiUrl)
             .addHeader("Cookie", sessionCookie)
             .build();
 

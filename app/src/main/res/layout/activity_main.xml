@@ -54,6 +54,15 @@
         android:textColor="#ffffff"
         android:layout_marginBottom="16dp"/>
 
+    <Button
+        android:id="@+id/view_log_btn"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="View Alarm Log"
+        android:backgroundTint="#374151"
+        android:textColor="#ffffff"
+        android:layout_marginBottom="16dp"/>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

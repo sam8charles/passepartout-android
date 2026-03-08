@@ -10,7 +10,12 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import java.io.File;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -33,8 +38,9 @@ public class MainActivity extends AppCompatActivity {
             .putString(KEY_USER, "shaun")
             .putString(KEY_PASS, "Flash_Robertson")
             .apply();
-        scheduleAlarm(this);
-        statusText.setText("✓ Ready. Alarm set for 06:00 daily.");
+        Calendar next = scheduleAlarm(this);
+        SimpleDateFormat sdf = new SimpleDateFormat("EEE dd MMM HH:mm", Locale.UK);
+        statusText.setText("✓ Ready. Next alarm: " + sdf.format(next.getTime()));
 
         testBtn.setOnClickListener(v -> {
             Intent intent = new Intent(this, TaskAlarmActivity.class);
@@ -49,9 +55,29 @@ public class MainActivity extends AppCompatActivity {
             sendBroadcast(alarmIntent);
             statusText.setText("Alarm broadcast sent - lock screen and check for notification");
         });
+
+        Button viewLogBtn = findViewById(R.id.view_log_btn);
+        viewLogBtn.setOnClickListener(v -> {
+            try {
+                java.io.File log = new java.io.File(getExternalFilesDir(null), "alarm_log.txt");
+                if (!log.exists()) {
+                    statusText.setText("No log yet - alarm has not fired since install");
+                    return;
+                }
+                java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(log));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line).append("
+");
+                br.close();
+                statusText.setText(sb.length() > 0 ? sb.toString() : "Log is empty");
+            } catch (Exception e) {
+                statusText.setText("Error reading log: " + e.getMessage());
+            }
+        });
     }
 
-    public static void scheduleAlarm(Context context) {
+    public static Calendar scheduleAlarm(Context context) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, AlarmReceiver.class);
         intent.setAction("uk.co.creationeer.passepartout.ALARM");
@@ -81,5 +107,18 @@ public class MainActivity extends AppCompatActivity {
                 pendingIntent
             );
         }
+        writeLog(context, "scheduleAlarm called. Next alarm: " + calendar.getTime().toString());
+        return calendar;
+    }
+
+    public static void writeLog(Context context, String message) {
+        try {
+            File log = new File(context.getExternalFilesDir(null), "alarm_log.txt");
+            FileWriter fw = new FileWriter(log, true);
+            String ts = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.UK).format(new Date());
+            fw.write(ts + " " + message + "
+");
+            fw.close();
+        } catch (Exception ignored) {}
     }
 }
