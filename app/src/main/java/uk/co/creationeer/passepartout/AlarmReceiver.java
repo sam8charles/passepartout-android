@@ -34,7 +34,6 @@ public class AlarmReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
-            MainActivity.scheduleAlarm(context);
             return;
         }
 
@@ -52,7 +51,6 @@ public class AlarmReceiver extends BroadcastReceiver {
 
         // Morning alarm
         MainActivity.writeLog(context, "onReceive fired. Action: " + action);
-        MainActivity.scheduleAlarm(context);
         context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
                .edit().putBoolean("alarm_pending", true)
                .putInt("alarm_task_id", -1).apply();
