@@ -49,7 +49,7 @@
         android:id="@+id/test_10min_btn"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Set Test Alarm: 10 Minutes"
+        android:text="Reset Today (Test)"
         android:backgroundTint="#f59e0b"
         android:textColor="#ffffff"
         android:layout_marginBottom="16dp"/>
@@ -66,7 +66,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="The alarm fires automatically at 06:00 every morning."
+        android:text="Task screen appears automatically after 12:00 each day."
         android:textColor="#666666"
         android:textSize="13sp"
         android:gravity="center"

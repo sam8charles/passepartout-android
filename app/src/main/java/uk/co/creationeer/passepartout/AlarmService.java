@@ -11,6 +11,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.os.PowerManager;
+import java.util.Calendar;
 
 public class AlarmService extends Service {
 
@@ -23,13 +24,11 @@ public class AlarmService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForeground(NOTIF_ID, buildNotification());
 
-        // Register for screen on and unlock events
         screenReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent i) {
-                String action = i.getAction();
-                if (Intent.ACTION_SCREEN_ON.equals(action) ||
-                    Intent.ACTION_USER_PRESENT.equals(action)) {
+                if (Intent.ACTION_SCREEN_ON.equals(i.getAction()) ||
+                    Intent.ACTION_USER_PRESENT.equals(i.getAction())) {
                     checkAndLaunch();
                 }
             }
@@ -40,7 +39,7 @@ public class AlarmService extends Service {
         filter.addAction(Intent.ACTION_USER_PRESENT);
         registerReceiver(screenReceiver, filter);
 
-        // Check immediately in case screen is already on
+        // Check immediately on start
         checkAndLaunch();
 
         return START_STICKY;
@@ -48,9 +47,18 @@ public class AlarmService extends Service {
 
     private void checkAndLaunch() {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
-        if (!prefs.getBoolean("alarm_pending", false)) return;
 
-        // Wake screen if needed
+        // Check if decision already made today
+        String todayKey = getTodayKey();
+        if (prefs.getBoolean("decided_" + todayKey, false)) return;
+
+        // Check if it's past 12:00
+        Calendar now = Calendar.getInstance();
+        if (now.get(Calendar.HOUR_OF_DAY) < 12) return;
+
+        // It's after 12:00 and no decision made today — launch task screen
+        MainActivity.writeLog(this, "checkAndLaunch: launching task screen for " + todayKey);
+
         PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
         PowerManager.WakeLock wl = pm.newWakeLock(
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
@@ -60,6 +68,11 @@ public class AlarmService extends Service {
         Intent launch = new Intent(this, TaskAlarmActivity.class);
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(launch);
+    }
+
+    public static String getTodayKey() {
+        Calendar c = Calendar.getInstance();
+        return c.get(Calendar.YEAR) + "-" + (c.get(Calendar.MONTH)+1) + "-" + c.get(Calendar.DAY_OF_MONTH);
     }
 
     @Override

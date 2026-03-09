@@ -405,6 +405,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
         try { stopLockTask(); } catch (Exception ignored) {}
         stopService(new Intent(this, AlarmService.class));
         getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
-            .edit().putBoolean("alarm_pending", false).apply();
+            .edit().putBoolean("decided_" + AlarmService.getTodayKey(), true).apply();
     }
 }
