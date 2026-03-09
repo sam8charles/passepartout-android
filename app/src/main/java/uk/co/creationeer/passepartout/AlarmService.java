@@ -8,12 +8,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.IBinder;
+import android.os.PowerManager;
 
-/**
- * Foreground service that runs from alarm time until the user makes a decision.
- * Listens for SCREEN_ON and USER_PRESENT and launches TaskAlarmActivity each time.
- */
 public class AlarmService extends Service {
 
     private static final String CHANNEL_ID = "passepartout_service";
@@ -25,14 +23,14 @@ public class AlarmService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForeground(NOTIF_ID, buildNotification());
 
-        // Register dynamic receiver for SCREEN_ON and USER_PRESENT
+        // Register for screen on and unlock events
         screenReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent i) {
                 String action = i.getAction();
                 if (Intent.ACTION_SCREEN_ON.equals(action) ||
                     Intent.ACTION_USER_PRESENT.equals(action)) {
-                    launchTaskScreen();
+                    checkAndLaunch();
                 }
             }
         };
@@ -42,13 +40,23 @@ public class AlarmService extends Service {
         filter.addAction(Intent.ACTION_USER_PRESENT);
         registerReceiver(screenReceiver, filter);
 
-        // Launch immediately in case screen is already on
-        launchTaskScreen();
+        // Check immediately in case screen is already on
+        checkAndLaunch();
 
         return START_STICKY;
     }
 
-    private void launchTaskScreen() {
+    private void checkAndLaunch() {
+        SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
+        if (!prefs.getBoolean("alarm_pending", false)) return;
+
+        // Wake screen if needed
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        PowerManager.WakeLock wl = pm.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "passepartout:alarm");
+        wl.acquire(3000);
+
         Intent launch = new Intent(this, TaskAlarmActivity.class);
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(launch);
@@ -58,7 +66,7 @@ public class AlarmService extends Service {
     public void onDestroy() {
         super.onDestroy();
         if (screenReceiver != null) {
-            unregisterReceiver(screenReceiver);
+            try { unregisterReceiver(screenReceiver); } catch (Exception ignored) {}
         }
     }
 
@@ -69,12 +77,12 @@ public class AlarmService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID, "Passepartout", NotificationManager.IMPORTANCE_HIGH);
+                CHANNEL_ID, "Passepartout", NotificationManager.IMPORTANCE_LOW);
             nm.createNotificationChannel(ch);
         }
         return new Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Passepartout")
-            .setContentText("Waiting for your decision...")
+            .setContentText("Running")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .setAutoCancel(false)

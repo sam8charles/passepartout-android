@@ -2,12 +2,15 @@ package uk.co.creationeer.passepartout;
 
 import android.app.DatePickerDialog;
 import android.app.KeyguardManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
@@ -19,7 +22,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import org.json.JSONObject;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -35,7 +41,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private JSONObject currentTask;
     private String sessionCookie;
     private boolean decisionMade = false;
-    private int specificTaskId = -1; // set if launched from a backburner alarm
+    private int specificTaskId = -1;
 
     private TextView projectText;
     private TextView taskText;
@@ -71,38 +77,38 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_task_alarm);
 
-        projectText        = findViewById(R.id.project_text);
-        taskText           = findViewById(R.id.task_text);
-        towardsText        = findViewById(R.id.towards_text);
-        statusText         = findViewById(R.id.loading_text);
-        doneBtn            = findViewById(R.id.btn_done);
-        todoSoonBtn        = findViewById(R.id.btn_todosoon);
-        todoLaterBtn       = findViewById(R.id.btn_todolater);
-        nextStepBtn        = findViewById(R.id.btn_nextstep);
-        editBtn            = findViewById(R.id.btn_edit);
-        deleteBtn          = findViewById(R.id.btn_delete);
+        projectText         = findViewById(R.id.project_text);
+        taskText            = findViewById(R.id.task_text);
+        towardsText         = findViewById(R.id.towards_text);
+        statusText          = findViewById(R.id.loading_text);
+        doneBtn             = findViewById(R.id.btn_done);
+        todoSoonBtn         = findViewById(R.id.btn_todosoon);
+        todoLaterBtn        = findViewById(R.id.btn_todolater);
+        nextStepBtn         = findViewById(R.id.btn_nextstep);
+        editBtn             = findViewById(R.id.btn_edit);
+        deleteBtn           = findViewById(R.id.btn_delete);
         nextStepInputLayout = findViewById(R.id.nextstep_input_layout);
-        nextStepInput      = findViewById(R.id.nextstep_input);
-        nextStepSaveBtn    = findViewById(R.id.nextstep_save_btn);
+        nextStepInput       = findViewById(R.id.nextstep_input);
+        nextStepSaveBtn     = findViewById(R.id.nextstep_save_btn);
 
-        // Check if we were launched for a specific backburner task
         specificTaskId = getIntent().getIntExtra(AlarmReceiver.EXTRA_TASK_ID, -1);
 
-        randomiseButtonPosition();
+        // Lock task so user cannot leave without making a decision
+        try {
+            startLockTask();
+        } catch (Exception ignored) {}
+
+        randomiseButtonOrder();
 
         setButtonsEnabled(false);
         statusText.setText("Connecting...");
-
         login();
 
         doneBtn.setOnClickListener(v -> performAction("done", null));
         editBtn.setOnClickListener(v -> openEdit());
         deleteBtn.setOnClickListener(v -> confirmAndDelete());
-
         todoSoonBtn.setOnClickListener(v -> performAction("todosoon", null));
-
         todoLaterBtn.setOnClickListener(v -> showDatePicker());
-
         nextStepBtn.setOnClickListener(v -> {
             if (nextStepInputLayout.getVisibility() == View.GONE) {
                 nextStepInputLayout.setVisibility(View.VISIBLE);
@@ -113,12 +119,11 @@ public class TaskAlarmActivity extends AppCompatActivity {
                 nextStepInputLayout.setVisibility(View.GONE);
             }
         });
-
         nextStepSaveBtn.setOnClickListener(v -> saveNextStep());
     }
 
     @Override
-    public void onBackPressed() { /* Cannot back out */ }
+    public void onBackPressed() { /* blocked */ }
 
     @Override
     protected void onStop() {
@@ -126,16 +131,69 @@ public class TaskAlarmActivity extends AppCompatActivity {
         if (!decisionMade && currentTask != null) {
             Intent intent = new Intent(this, TaskAlarmActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            if (specificTaskId > 0) {
-                intent.putExtra(AlarmReceiver.EXTRA_TASK_ID, specificTaskId);
-            }
+            if (specificTaskId > 0) intent.putExtra(AlarmReceiver.EXTRA_TASK_ID, specificTaskId);
             getApplicationContext().startActivity(intent);
+        }
+    }
+
+    private void randomiseButtonOrder() {
+        // Collect the 6 main buttons
+        List<Button> buttons = new ArrayList<>();
+        buttons.add(doneBtn);
+        buttons.add(todoSoonBtn);
+        buttons.add(todoLaterBtn);
+        buttons.add(nextStepBtn);
+        buttons.add(editBtn);
+        buttons.add(deleteBtn);
+        Collections.shuffle(buttons, new Random());
+
+        // Find button container and re-add in shuffled order
+        LinearLayout buttonBlock = findViewById(R.id.button_block);
+        if (buttonBlock == null) return;
+
+        // Remove all buttons from their current rows
+        // Re-build 3 rows of 2
+        buttonBlock.removeAllViews();
+        for (int i = 0; i < 6; i += 2) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            rowParams.setMargins(0, 0, 0, 16);
+            row.setLayoutParams(rowParams);
+
+            Button b1 = buttons.get(i);
+            Button b2 = buttons.get(i + 1);
+
+            if (b1.getParent() != null) ((ViewGroup) b1.getParent()).removeView(b1);
+            if (b2.getParent() != null) ((ViewGroup) b2.getParent()).removeView(b2);
+
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            btnParams.setMargins(0, 0, 8, 0);
+            b1.setLayoutParams(btnParams);
+
+            LinearLayout.LayoutParams btnParams2 = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            b2.setLayoutParams(btnParams2);
+
+            row.addView(b1);
+            row.addView(b2);
+            buttonBlock.addView(row);
+        }
+
+        // Randomly place button block above or below task text
+        LinearLayout root = findViewById(R.id.root_layout);
+        if (root == null) return;
+        if (new Random().nextBoolean()) {
+            root.removeView(buttonBlock);
+            // Insert after title (position 1)
+            root.addView(buttonBlock, 1);
         }
     }
 
     private void showDatePicker() {
         Calendar cal = Calendar.getInstance();
-        // Default to 1 week from now
         cal.add(Calendar.DAY_OF_MONTH, 7);
         DatePickerDialog picker = new DatePickerDialog(
             this,
@@ -143,54 +201,11 @@ public class TaskAlarmActivity extends AppCompatActivity {
                 String date = String.format("%02d-%02d-%04d", day, month + 1, year);
                 performAction("todolater", date);
             },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
+            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
         );
         picker.setTitle("Revisit this task from...");
-        picker.getDatePicker().setMinDate(System.currentTimeMillis() + 86400000L); // min tomorrow
+        picker.getDatePicker().setMinDate(System.currentTimeMillis() + 86400000L);
         picker.show();
-    }
-
-    private void randomiseButtonPosition() {
-        LinearLayout root = findViewById(R.id.root_layout);
-        LinearLayout buttonBlock = findViewById(R.id.button_block);
-        if (root == null || buttonBlock == null) return;
-
-        // 0 = all below (default), 1 = all above, 2 = split
-        int choice = new Random().nextInt(3);
-
-        if (choice == 0) {
-            // Default: buttons already at bottom, nothing to do
-            return;
-        }
-
-        if (choice == 1) {
-            // Move entire button block to just after the PASSEPARTOUT title
-            root.removeView(buttonBlock);
-            root.addView(buttonBlock, 1);
-            return;
-        }
-
-        // choice == 2: split - rows 1 and 2 above, row 3 below
-        if (buttonBlock.getChildCount() < 3) return;
-
-        LinearLayout topBlock = new LinearLayout(this);
-        topBlock.setOrientation(LinearLayout.VERTICAL);
-        android.view.ViewGroup.LayoutParams lp = new android.view.ViewGroup.LayoutParams(
-            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-        topBlock.setLayoutParams(lp);
-        topBlock.setPadding(40, 16, 40, 0);
-
-        android.view.View row0 = buttonBlock.getChildAt(0);
-        android.view.View row1 = buttonBlock.getChildAt(1);
-        buttonBlock.removeView(row0);
-        buttonBlock.removeView(row1);
-        topBlock.addView(row0);
-        topBlock.addView(row1);
-
-        root.addView(topBlock, 1);
     }
 
     private void login() {
@@ -202,7 +217,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
             .add("username", username)
             .add("password", password)
             .build();
-
         Request request = new Request.Builder()
             .url(MainActivity.BASE_URL + "app_login.php")
             .post(body)
@@ -212,20 +226,17 @@ public class TaskAlarmActivity extends AppCompatActivity {
             @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> statusText.setText("No internet connection."));
             }
-
             @Override public void onResponse(Call call, Response response) throws IOException {
                 String respBody = response.body().string();
                 String cookie = response.header("Set-Cookie");
                 if (cookie != null && cookie.contains("PHPSESSID=")) {
                     int start = cookie.indexOf("PHPSESSID=");
-                    int end   = cookie.indexOf(";", start);
+                    int end = cookie.indexOf(";", start);
                     sessionCookie = end > 0 ? cookie.substring(start, end) : cookie.substring(start);
                 } else {
                     try {
-                        JSONObject json = new JSONObject(respBody);
-                        if (json.has("session")) {
-                            sessionCookie = "PHPSESSID=" + json.getString("session");
-                        }
+                        org.json.JSONObject json = new org.json.JSONObject(respBody);
+                        if (json.has("session")) sessionCookie = "PHPSESSID=" + json.getString("session");
                     } catch (Exception ignored) {}
                 }
                 if (sessionCookie == null) {
@@ -239,21 +250,17 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
     private void loadTask() {
         runOnUiThread(() -> statusText.setText("Loading task..."));
-
         String apiUrl = specificTaskId > 0
             ? MainActivity.BASE_URL + "app_api.php?action=gettask&task_id=" + specificTaskId
             : MainActivity.BASE_URL + "app_api.php?action=getrandomtask";
 
         Request request = new Request.Builder()
-            .url(apiUrl)
-            .addHeader("Cookie", sessionCookie)
-            .build();
+            .url(apiUrl).addHeader("Cookie", sessionCookie).build();
 
         client.newCall(request).enqueue(new Callback() {
             @Override public void onFailure(Call call, IOException e) {
                 runOnUiThread(() -> statusText.setText("Could not load task."));
             }
-
             @Override public void onResponse(Call call, Response response) throws IOException {
                 String body = response.body().string();
                 runOnUiThread(() -> {
@@ -266,7 +273,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         currentTask = json;
                         projectText.setText(json.getString("project_name"));
                         taskText.setText(json.getString("description"));
-
                         String parentDesc = json.optString("parent_description", "");
                         if (!parentDesc.isEmpty()) {
                             towardsText.setText("towards: " + parentDesc);
@@ -274,11 +280,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         } else {
                             towardsText.setVisibility(View.GONE);
                         }
-
-                        // Set Todo Soon / Todo Later button states
                         boolean onTodoSoon = json.optBoolean("on_radar", false);
                         updateTodoButtons(onTodoSoon);
-
                         statusText.setText("Be bothered - take time to think");
                         setButtonsEnabled(true);
                     } catch (Exception e) {
@@ -299,13 +302,13 @@ public class TaskAlarmActivity extends AppCompatActivity {
             todoSoonBtn.setAlpha(1.0f);
             todoSoonBtn.setEnabled(true);
             todoLaterBtn.setAlpha(0.4f);
-            todoLaterBtn.setEnabled(true); // always allow Todo Later
+            todoLaterBtn.setEnabled(true);
         }
     }
 
     private void setButtonsEnabled(boolean enabled) {
         doneBtn.setEnabled(enabled);
-        todoSoonBtn.setEnabled(enabled);
+        todoSoonBtn.setEnabled(enabled && todoSoonBtn.getAlpha() > 0.5f);
         todoLaterBtn.setEnabled(enabled);
         nextStepBtn.setEnabled(enabled);
         editBtn.setEnabled(enabled);
@@ -316,17 +319,12 @@ public class TaskAlarmActivity extends AppCompatActivity {
         if (currentTask == null) return;
         setButtonsEnabled(false);
         statusText.setText("Saving...");
-
         try {
             int taskId = currentTask.getInt("task_id");
             String url = MainActivity.BASE_URL + "app_api.php?action=" + action + "&task_id=" + taskId;
             if (date != null) url += "&date=" + Uri.encode(date);
-
             Request request = new Request.Builder()
-                .url(url)
-                .addHeader("Cookie", sessionCookie)
-                .build();
-
+                .url(url).addHeader("Cookie", sessionCookie).build();
             client.newCall(request).enqueue(new Callback() {
                 @Override public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -335,7 +333,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
                         statusText.setText("Be bothered - take time to think");
                     });
                 }
-
                 @Override public void onResponse(Call call, Response response) throws IOException {
                     runOnUiThread(() -> {
                         decisionMade = true;
@@ -357,17 +354,12 @@ public class TaskAlarmActivity extends AppCompatActivity {
         }
         if (currentTask == null) return;
         nextStepSaveBtn.setEnabled(false);
-
         try {
             int taskId = currentTask.getInt("task_id");
             String url = MainActivity.BASE_URL + "app_api.php?action=nextstep&task_id=" + taskId
                 + "&description=" + Uri.encode(description);
-
             Request request = new Request.Builder()
-                .url(url)
-                .addHeader("Cookie", sessionCookie)
-                .build();
-
+                .url(url).addHeader("Cookie", sessionCookie).build();
             client.newCall(request).enqueue(new Callback() {
                 @Override public void onFailure(Call call, IOException e) {
                     runOnUiThread(() -> {
@@ -393,12 +385,6 @@ public class TaskAlarmActivity extends AppCompatActivity {
             .show();
     }
 
-    private void clearAlarmPending() {
-        stopService(new Intent(this, AlarmService.class));
-        getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
-            .edit().putBoolean("alarm_pending", false).apply();
-    }
-
     private void openEdit() {
         if (currentTask == null) return;
         try {
@@ -413,5 +399,12 @@ public class TaskAlarmActivity extends AppCompatActivity {
         } catch (Exception e) {
             Toast.makeText(this, "Could not open task", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void clearAlarmPending() {
+        try { stopLockTask(); } catch (Exception ignored) {}
+        stopService(new Intent(this, AlarmService.class));
+        getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
+            .edit().putBoolean("alarm_pending", false).apply();
     }
 }
