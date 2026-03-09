@@ -1,6 +1,10 @@
 package uk.co.creationeer.passepartout;
 
 import android.app.admin.DevicePolicyManager;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -45,6 +49,15 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
                 "Passepartout needs this to keep the task screen visible until you make a decision.");
             startActivityForResult(intent, REQUEST_ADMIN);
+        }
+
+        // Request notification permission (Android 13+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS}, 2);
+            }
         }
 
         // Start permanent foreground service
