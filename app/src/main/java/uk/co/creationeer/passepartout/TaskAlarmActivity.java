@@ -394,6 +394,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     }
 
     private void clearAlarmPending() {
+        stopService(new Intent(this, AlarmService.class));
         getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
             .edit().putBoolean("alarm_pending", false).apply();
     }

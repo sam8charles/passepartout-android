@@ -78,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
     // Schedule the daily 06:00 alarm using setAlarmClock (cannot be deferred by Android)
     public static Calendar scheduleAlarm(Context context) {
         Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, 6);
+        calendar.set(Calendar.HOUR_OF_DAY, 12);
         calendar.set(Calendar.MINUTE, 0);
         calendar.set(Calendar.SECOND, 0);
         calendar.set(Calendar.MILLISECOND, 0);
