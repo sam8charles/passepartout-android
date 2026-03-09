@@ -295,7 +295,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
         try {
             int taskId = currentTask.getInt("task_id");
             int projectId = currentTask.getInt("project_id");
-            String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "#task" + taskId;
+            String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "&taskid=" + taskId + "#task" + taskId;
             decisionMade = true;
             dismiss();
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
