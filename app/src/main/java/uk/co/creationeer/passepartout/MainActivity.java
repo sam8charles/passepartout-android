@@ -56,12 +56,15 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.test_btn).setOnClickListener(v ->
             startActivity(new Intent(this, TaskAlarmActivity.class)));
 
-        // Force today's decision screen (for testing)
+        // Force today's decision screen (for testing) - 5 second delay so you can swipe away first
         findViewById(R.id.test_10min_btn).setOnClickListener(v -> {
-            // Clear today's decision so it shows again
             prefs.edit().remove("decided_" + AlarmService.getTodayKey()).apply();
-            startActivity(new Intent(this, TaskAlarmActivity.class));
-            statusText.setText("Today's decision reset — task screen launched.");
+            statusText.setText("Decision reset. Swipe away now — task screen will appear in 5 seconds.");
+            new android.os.Handler().postDelayed(() -> {
+                Intent launch = new Intent(this, TaskAlarmActivity.class);
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(launch);
+            }, 5000);
         });
 
         // View log
