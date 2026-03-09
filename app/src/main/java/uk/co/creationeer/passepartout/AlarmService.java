@@ -69,13 +69,15 @@ public class AlarmService extends Service {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             NotificationChannel ch = new NotificationChannel(
-                CHANNEL_ID, "Passepartout", NotificationManager.IMPORTANCE_LOW);
+                CHANNEL_ID, "Passepartout", NotificationManager.IMPORTANCE_HIGH);
             nm.createNotificationChannel(ch);
         }
         return new Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Passepartout")
             .setContentText("Waiting for your decision...")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setOngoing(true)
+            .setAutoCancel(false)
             .build();
     }
 }
