@@ -8,7 +8,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import java.io.File;
 import java.io.FileWriter;
@@ -19,10 +18,10 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    static final String PREFS       = "passepartout";
-    static final String KEY_USER    = "username";
-    static final String KEY_PASS    = "password";
-    static final String BASE_URL    = "https://creationeer.co.uk/goforit/";
+    static final String PREFS    = "passepartout";
+    static final String KEY_USER = "username";
+    static final String KEY_PASS = "password";
+    static final String BASE_URL = "https://creationeer.co.uk/goforit/";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,37 +30,37 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         TextView statusText = findViewById(R.id.status_text);
-        Button testBtn      = findViewById(R.id.test_btn);
 
-        // Always reset credentials to ensure correct values
         prefs.edit()
             .putString(KEY_USER, "shaun")
             .putString(KEY_PASS, "Flash_Robertson")
             .apply();
+
         Calendar next = scheduleAlarm(this);
         SimpleDateFormat sdf = new SimpleDateFormat("EEE dd MMM HH:mm", Locale.UK);
         statusText.setText("✓ Ready. Next alarm: " + sdf.format(next.getTime()));
 
-        testBtn.setOnClickListener(v -> {
-            Intent intent = new Intent(this, TaskAlarmActivity.class);
-            startActivity(intent);
+        // Show task screen directly (foreground test)
+        findViewById(R.id.test_btn).setOnClickListener(v -> {
+            startActivity(new Intent(this, TaskAlarmActivity.class));
         });
 
-        Button testNotifBtn = findViewById(R.id.test_notif_btn);
-        testNotifBtn.setOnClickListener(v -> {
-            // Simulate exactly what the real alarm does - send the broadcast
-            Intent alarmIntent = new Intent(this, AlarmReceiver.class);
-            alarmIntent.setAction(AlarmReceiver.ACTION_MORNING);
-            sendBroadcast(alarmIntent);
-            statusText.setText("Alarm broadcast sent - lock screen and check for notification");
+        // Schedule alarm 10 minutes from now (real alarm test)
+        findViewById(R.id.test_10min_btn).setOnClickListener(v -> {
+            Calendar in10 = Calendar.getInstance();
+            in10.add(Calendar.MINUTE, 10);
+            scheduleOneOff(this, in10);
+            SimpleDateFormat fmt = new SimpleDateFormat("HH:mm:ss", Locale.UK);
+            statusText.setText("Test alarm set for " + fmt.format(in10.getTime()) + "\nLock your phone and wait.");
+            writeLog(this, "10-min test alarm scheduled for " + in10.getTime());
         });
 
-        Button viewLogBtn = findViewById(R.id.view_log_btn);
-        viewLogBtn.setOnClickListener(v -> {
+        // View log
+        findViewById(R.id.view_log_btn).setOnClickListener(v -> {
             try {
-                java.io.File log = new java.io.File(getExternalFilesDir(null), "alarm_log.txt");
+                File log = new File(getExternalFilesDir(null), "alarm_log.txt");
                 if (!log.exists()) {
-                    statusText.setText("No log yet - alarm has not fired since install");
+                    statusText.setText("No log yet");
                     return;
                 }
                 java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(log));
@@ -76,14 +75,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Schedule the daily 06:00 alarm using setAlarmClock (cannot be deferred by Android)
     public static Calendar scheduleAlarm(Context context) {
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, AlarmReceiver.class);
-        intent.setAction("uk.co.creationeer.passepartout.ALARM");
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-            context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-
         Calendar calendar = Calendar.getInstance();
         calendar.set(Calendar.HOUR_OF_DAY, 6);
         calendar.set(Calendar.MINUTE, 0);
@@ -92,22 +85,25 @@ public class MainActivity extends AppCompatActivity {
         if (calendar.getTimeInMillis() <= System.currentTimeMillis()) {
             calendar.add(Calendar.DAY_OF_YEAR, 1);
         }
-
-        try {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                calendar.getTimeInMillis(),
-                pendingIntent
-            );
-        } catch (SecurityException e) {
-            alarmManager.setAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                calendar.getTimeInMillis(),
-                pendingIntent
-            );
-        }
-        writeLog(context, "scheduleAlarm called. Next alarm: " + calendar.getTime().toString());
+        setAlarmClock(context, calendar, 0);
+        writeLog(context, "scheduleAlarm called. Next alarm: " + calendar.getTime());
         return calendar;
+    }
+
+    // Schedule a one-off alarm at the given time (for testing)
+    public static void scheduleOneOff(Context context, Calendar when) {
+        setAlarmClock(context, when, 1);
+    }
+
+    private static void setAlarmClock(Context context, Calendar when, int requestCode) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, AlarmReceiver.class);
+        intent.setAction(AlarmReceiver.ACTION_MORNING);
+        PendingIntent pi = PendingIntent.getBroadcast(
+            context, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        alarmManager.setAlarmClock(new AlarmManager.AlarmClockInfo(when.getTimeInMillis(), pi), pi);
     }
 
     public static void writeLog(Context context, String message) {

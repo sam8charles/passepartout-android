@@ -46,11 +46,11 @@
         android:layout_marginBottom="16dp"/>
 
     <Button
-        android:id="@+id/test_notif_btn"
+        android:id="@+id/test_10min_btn"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Test: Simulate Real Alarm"
-        android:backgroundTint="#6b7280"
+        android:text="Set Test Alarm: 10 Minutes"
+        android:backgroundTint="#f59e0b"
         android:textColor="#ffffff"
         android:layout_marginBottom="16dp"/>
 
@@ -66,7 +66,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="The alarm fires automatically at 06:00 every morning.\nNo action needed from you."
+        android:text="The alarm fires automatically at 06:00 every morning."
         android:textColor="#666666"
         android:textSize="13sp"
         android:gravity="center"
