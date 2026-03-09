@@ -2,8 +2,7 @@ package uk.co.creationeer.passepartout;
 
 import android.app.DatePickerDialog;
 import android.app.KeyguardManager;
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -43,16 +42,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private boolean decisionMade = false;
     private int specificTaskId = -1;
 
-    private TextView projectText;
-    private TextView taskText;
-    private TextView towardsText;
-    private TextView statusText;
-    private Button doneBtn;
-    private Button todoSoonBtn;
-    private Button todoLaterBtn;
-    private Button nextStepBtn;
-    private Button editBtn;
-    private Button deleteBtn;
+    private TextView projectText, taskText, towardsText, statusText;
+    private Button doneBtn, todoSoonBtn, todoLaterBtn, nextStepBtn, editBtn, deleteBtn;
     private LinearLayout nextStepInputLayout;
     private EditText nextStepInput;
     private Button nextStepSaveBtn;
@@ -61,6 +52,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Show over lock screen and turn screen on
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
@@ -70,8 +62,7 @@ public class TaskAlarmActivity extends AppCompatActivity {
             getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-            );
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         }
 
         setContentView(R.layout.activity_task_alarm);
@@ -90,15 +81,10 @@ public class TaskAlarmActivity extends AppCompatActivity {
         nextStepInput       = findViewById(R.id.nextstep_input);
         nextStepSaveBtn     = findViewById(R.id.nextstep_save_btn);
 
-        specificTaskId = getIntent().getIntExtra(AlarmReceiver.EXTRA_TASK_ID, -1);
-
-        // Lock task so user cannot leave without making a decision
-        try {
-            startLockTask();
-        } catch (Exception ignored) {}
+        specificTaskId = getIntent().getIntExtra(AlarmReceiver.ACTION_MORNING.length() > 0
+            ? "task_id" : "task_id", -1);
 
         randomiseButtonOrder();
-
         setButtonsEnabled(false);
         statusText.setText("Connecting...");
         login();
@@ -112,8 +98,8 @@ public class TaskAlarmActivity extends AppCompatActivity {
             if (nextStepInputLayout.getVisibility() == View.GONE) {
                 nextStepInputLayout.setVisibility(View.VISIBLE);
                 nextStepInput.requestFocus();
-                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-                imm.showSoftInput(nextStepInput, InputMethodManager.SHOW_IMPLICIT);
+                ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
+                    .showSoftInput(nextStepInput, InputMethodManager.SHOW_IMPLICIT);
             } else {
                 nextStepInputLayout.setVisibility(View.GONE);
             }
@@ -122,21 +108,9 @@ public class TaskAlarmActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onBackPressed() { /* blocked */ }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (!decisionMade && currentTask != null) {
-            Intent intent = new Intent(this, TaskAlarmActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            if (specificTaskId > 0) intent.putExtra(AlarmReceiver.EXTRA_TASK_ID, specificTaskId);
-            getApplicationContext().startActivity(intent);
-        }
-    }
+    public void onBackPressed() { /* blocked until decision made */ }
 
     private void randomiseButtonOrder() {
-        // Collect the 6 main buttons
         List<Button> buttons = new ArrayList<>();
         buttons.add(doneBtn);
         buttons.add(todoSoonBtn);
@@ -146,13 +120,10 @@ public class TaskAlarmActivity extends AppCompatActivity {
         buttons.add(deleteBtn);
         Collections.shuffle(buttons, new Random());
 
-        // Find button container and re-add in shuffled order
         LinearLayout buttonBlock = findViewById(R.id.button_block);
         if (buttonBlock == null) return;
-
-        // Remove all buttons from their current rows
-        // Re-build 3 rows of 2
         buttonBlock.removeAllViews();
+
         for (int i = 0; i < 6; i += 2) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
@@ -163,30 +134,23 @@ public class TaskAlarmActivity extends AppCompatActivity {
 
             Button b1 = buttons.get(i);
             Button b2 = buttons.get(i + 1);
-
             if (b1.getParent() != null) ((ViewGroup) b1.getParent()).removeView(b1);
             if (b2.getParent() != null) ((ViewGroup) b2.getParent()).removeView(b2);
 
-            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            btnParams.setMargins(0, 0, 8, 0);
-            b1.setLayoutParams(btnParams);
-
-            LinearLayout.LayoutParams btnParams2 = new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            b2.setLayoutParams(btnParams2);
+            LinearLayout.LayoutParams p1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            p1.setMargins(0, 0, 8, 0);
+            b1.setLayoutParams(p1);
+            b2.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             row.addView(b1);
             row.addView(b2);
             buttonBlock.addView(row);
         }
 
-        // Randomly place button block above or below task text
+        // Randomly place buttons above or below task text
         LinearLayout root = findViewById(R.id.root_layout);
-        if (root == null) return;
-        if (new Random().nextBoolean()) {
+        if (root != null && new Random().nextBoolean()) {
             root.removeView(buttonBlock);
-            // Insert after title (position 1)
             root.addView(buttonBlock, 1);
         }
     }
@@ -194,115 +158,80 @@ public class TaskAlarmActivity extends AppCompatActivity {
     private void showDatePicker() {
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.DAY_OF_MONTH, 7);
-        DatePickerDialog picker = new DatePickerDialog(
-            this,
-            (view, year, month, day) -> {
-                String date = String.format("%02d-%02d-%04d", day, month + 1, year);
-                performAction("todolater", date);
-            },
-            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)
-        );
-        picker.setTitle("Revisit this task from...");
-        picker.getDatePicker().setMinDate(System.currentTimeMillis() + 86400000L);
-        picker.show();
+        new DatePickerDialog(this, (view, year, month, day) -> {
+            String date = String.format("%02d-%02d-%04d", day, month + 1, year);
+            performAction("todolater", date);
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH))
+            .show();
     }
 
     private void login() {
         SharedPreferences prefs = getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE);
-        String username = prefs.getString(MainActivity.KEY_USER, "shaun");
-        String password = prefs.getString(MainActivity.KEY_PASS, "Flash_Robertson");
-
         RequestBody body = new FormBody.Builder()
-            .add("username", username)
-            .add("password", password)
+            .add("username", prefs.getString(MainActivity.KEY_USER, "shaun"))
+            .add("password", prefs.getString(MainActivity.KEY_PASS, "Flash_Robertson"))
             .build();
-        Request request = new Request.Builder()
-            .url(MainActivity.BASE_URL + "app_login.php")
-            .post(body)
-            .build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> statusText.setText("No internet connection."));
-            }
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                String respBody = response.body().string();
-                String cookie = response.header("Set-Cookie");
-                if (cookie != null && cookie.contains("PHPSESSID=")) {
-                    int start = cookie.indexOf("PHPSESSID=");
-                    int end = cookie.indexOf(";", start);
-                    sessionCookie = end > 0 ? cookie.substring(start, end) : cookie.substring(start);
-                } else {
-                    try {
-                        org.json.JSONObject json = new org.json.JSONObject(respBody);
-                        if (json.has("session")) sessionCookie = "PHPSESSID=" + json.getString("session");
-                    } catch (Exception ignored) {}
+        client.newCall(new Request.Builder().url(MainActivity.BASE_URL + "app_login.php").post(body).build())
+            .enqueue(new Callback() {
+                @Override public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> statusText.setText("No internet connection."));
                 }
-                if (sessionCookie == null) {
-                    runOnUiThread(() -> statusText.setText("Login failed."));
-                    return;
+                @Override public void onResponse(Call call, Response response) throws IOException {
+                    String respBody = response.body().string();
+                    String cookie = response.header("Set-Cookie");
+                    if (cookie != null && cookie.contains("PHPSESSID=")) {
+                        int s = cookie.indexOf("PHPSESSID="), e = cookie.indexOf(";", s);
+                        sessionCookie = e > 0 ? cookie.substring(s, e) : cookie.substring(s);
+                    } else {
+                        try {
+                            JSONObject j = new JSONObject(respBody);
+                            if (j.has("session")) sessionCookie = "PHPSESSID=" + j.getString("session");
+                        } catch (Exception ignored) {}
+                    }
+                    if (sessionCookie == null) { runOnUiThread(() -> statusText.setText("Login failed.")); return; }
+                    loadTask();
                 }
-                loadTask();
-            }
-        });
+            });
     }
 
     private void loadTask() {
         runOnUiThread(() -> statusText.setText("Loading task..."));
-        String apiUrl = specificTaskId > 0
+        String url = specificTaskId > 0
             ? MainActivity.BASE_URL + "app_api.php?action=gettask&task_id=" + specificTaskId
             : MainActivity.BASE_URL + "app_api.php?action=getrandomtask";
-
-        Request request = new Request.Builder()
-            .url(apiUrl).addHeader("Cookie", sessionCookie).build();
-
-        client.newCall(request).enqueue(new Callback() {
-            @Override public void onFailure(Call call, IOException e) {
-                runOnUiThread(() -> statusText.setText("Could not load task."));
-            }
-            @Override public void onResponse(Call call, Response response) throws IOException {
-                String body = response.body().string();
-                runOnUiThread(() -> {
-                    try {
-                        JSONObject json = new JSONObject(body);
-                        if (json.has("error")) {
-                            statusText.setText("Error: " + json.getString("error"));
-                            return;
+        client.newCall(new Request.Builder().url(url).addHeader("Cookie", sessionCookie).build())
+            .enqueue(new Callback() {
+                @Override public void onFailure(Call call, IOException e) {
+                    runOnUiThread(() -> statusText.setText("Could not load task."));
+                }
+                @Override public void onResponse(Call call, Response response) throws IOException {
+                    String body = response.body().string();
+                    runOnUiThread(() -> {
+                        try {
+                            JSONObject json = new JSONObject(body);
+                            if (json.has("error")) { statusText.setText("Error: " + json.getString("error")); return; }
+                            currentTask = json;
+                            projectText.setText(json.getString("project_name"));
+                            taskText.setText(json.getString("description"));
+                            String pd = json.optString("parent_description", "");
+                            towardsText.setVisibility(pd.isEmpty() ? View.GONE : View.VISIBLE);
+                            if (!pd.isEmpty()) towardsText.setText("towards: " + pd);
+                            updateTodoButtons(json.optBoolean("on_radar", false));
+                            statusText.setText("Be bothered - take time to think");
+                            setButtonsEnabled(true);
+                        } catch (Exception e) {
+                            statusText.setText("Error: " + body.substring(0, Math.min(body.length(), 80)));
                         }
-                        currentTask = json;
-                        projectText.setText(json.getString("project_name"));
-                        taskText.setText(json.getString("description"));
-                        String parentDesc = json.optString("parent_description", "");
-                        if (!parentDesc.isEmpty()) {
-                            towardsText.setText("towards: " + parentDesc);
-                            towardsText.setVisibility(View.VISIBLE);
-                        } else {
-                            towardsText.setVisibility(View.GONE);
-                        }
-                        boolean onTodoSoon = json.optBoolean("on_radar", false);
-                        updateTodoButtons(onTodoSoon);
-                        statusText.setText("Be bothered - take time to think");
-                        setButtonsEnabled(true);
-                    } catch (Exception e) {
-                        statusText.setText("Error: " + body.substring(0, Math.min(body.length(), 80)));
-                    }
-                });
-            }
-        });
+                    });
+                }
+            });
     }
 
     private void updateTodoButtons(boolean onTodoSoon) {
-        if (onTodoSoon) {
-            todoSoonBtn.setAlpha(0.4f);
-            todoSoonBtn.setEnabled(false);
-            todoLaterBtn.setAlpha(1.0f);
-            todoLaterBtn.setEnabled(true);
-        } else {
-            todoSoonBtn.setAlpha(1.0f);
-            todoSoonBtn.setEnabled(true);
-            todoLaterBtn.setAlpha(0.4f);
-            todoLaterBtn.setEnabled(true);
-        }
+        todoSoonBtn.setAlpha(onTodoSoon ? 0.4f : 1.0f);
+        todoSoonBtn.setEnabled(!onTodoSoon);
+        todoLaterBtn.setAlpha(1.0f);
+        todoLaterBtn.setEnabled(true);
     }
 
     private void setButtonsEnabled(boolean enabled) {
@@ -322,88 +251,61 @@ public class TaskAlarmActivity extends AppCompatActivity {
             int taskId = currentTask.getInt("task_id");
             String url = MainActivity.BASE_URL + "app_api.php?action=" + action + "&task_id=" + taskId;
             if (date != null) url += "&date=" + Uri.encode(date);
-            Request request = new Request.Builder()
-                .url(url).addHeader("Cookie", sessionCookie).build();
-            client.newCall(request).enqueue(new Callback() {
-                @Override public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(TaskAlarmActivity.this, "Failed. Try again.", Toast.LENGTH_SHORT).show();
-                        setButtonsEnabled(true);
-                        statusText.setText("Be bothered - take time to think");
-                    });
-                }
-                @Override public void onResponse(Call call, Response response) throws IOException {
-                    runOnUiThread(() -> {
-                        decisionMade = true;
-                        clearAlarmPending();
-                        finish();
-                    });
-                }
-            });
-        } catch (Exception e) {
-            setButtonsEnabled(true);
-        }
+            client.newCall(new Request.Builder().url(url).addHeader("Cookie", sessionCookie).build())
+                .enqueue(new Callback() {
+                    @Override public void onFailure(Call call, IOException e) {
+                        runOnUiThread(() -> { Toast.makeText(TaskAlarmActivity.this, "Failed. Try again.", Toast.LENGTH_SHORT).show(); setButtonsEnabled(true); statusText.setText("Be bothered - take time to think"); });
+                    }
+                    @Override public void onResponse(Call call, Response response) throws IOException {
+                        runOnUiThread(() -> { decisionMade = true; dismiss(); });
+                    }
+                });
+        } catch (Exception e) { setButtonsEnabled(true); }
     }
 
     private void saveNextStep() {
-        String description = nextStepInput.getText().toString().trim();
-        if (description.isEmpty()) {
-            Toast.makeText(this, "Please describe the next step", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        String desc = nextStepInput.getText().toString().trim();
+        if (desc.isEmpty()) { Toast.makeText(this, "Please describe the next step", Toast.LENGTH_SHORT).show(); return; }
         if (currentTask == null) return;
         nextStepSaveBtn.setEnabled(false);
         try {
             int taskId = currentTask.getInt("task_id");
-            String url = MainActivity.BASE_URL + "app_api.php?action=nextstep&task_id=" + taskId
-                + "&description=" + Uri.encode(description);
-            Request request = new Request.Builder()
-                .url(url).addHeader("Cookie", sessionCookie).build();
-            client.newCall(request).enqueue(new Callback() {
-                @Override public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(TaskAlarmActivity.this, "Failed. Try again.", Toast.LENGTH_SHORT).show();
-                        nextStepSaveBtn.setEnabled(true);
-                    });
-                }
-                @Override public void onResponse(Call call, Response response) throws IOException {
-                    runOnUiThread(() -> { decisionMade = true; clearAlarmPending(); finish(); });
-                }
-            });
-        } catch (Exception e) {
-            nextStepSaveBtn.setEnabled(true);
-        }
+            String url = MainActivity.BASE_URL + "app_api.php?action=nextstep&task_id=" + taskId + "&description=" + Uri.encode(desc);
+            client.newCall(new Request.Builder().url(url).addHeader("Cookie", sessionCookie).build())
+                .enqueue(new Callback() {
+                    @Override public void onFailure(Call call, IOException e) {
+                        runOnUiThread(() -> { Toast.makeText(TaskAlarmActivity.this, "Failed.", Toast.LENGTH_SHORT).show(); nextStepSaveBtn.setEnabled(true); });
+                    }
+                    @Override public void onResponse(Call call, Response response) throws IOException {
+                        runOnUiThread(() -> { decisionMade = true; dismiss(); });
+                    }
+                });
+        } catch (Exception e) { nextStepSaveBtn.setEnabled(true); }
     }
 
     private void confirmAndDelete() {
         new AlertDialog.Builder(this)
-            .setTitle("Delete task?")
-            .setMessage("This will permanently remove the task.")
+            .setTitle("Delete task?").setMessage("This will permanently remove the task.")
             .setPositiveButton("Delete", (d, w) -> performAction("drop", null))
-            .setNegativeButton("Cancel", null)
-            .show();
+            .setNegativeButton("Cancel", null).show();
     }
 
     private void openEdit() {
         if (currentTask == null) return;
         try {
-            int taskId    = currentTask.getInt("task_id");
+            int taskId = currentTask.getInt("task_id");
             int projectId = currentTask.getInt("project_id");
             String url = MainActivity.BASE_URL + "showproject.php?id=" + projectId + "#task" + taskId;
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             decisionMade = true;
-            clearAlarmPending();
-            startActivity(intent);
-            finish();
-        } catch (Exception e) {
-            Toast.makeText(this, "Could not open task", Toast.LENGTH_SHORT).show();
-        }
+            dismiss();
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception e) { Toast.makeText(this, "Could not open task", Toast.LENGTH_SHORT).show(); }
     }
 
-    private void clearAlarmPending() {
-        try { stopLockTask(); } catch (Exception ignored) {}
-        stopService(new Intent(this, AlarmService.class));
-        getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE)
-            .edit().putBoolean("decided_" + AlarmService.getTodayKey(), true).apply();
+    private void dismiss() {
+        // Cancel the notification
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.cancel(AlarmReceiver.NOTIF_ID);
+        finish();
     }
 }
